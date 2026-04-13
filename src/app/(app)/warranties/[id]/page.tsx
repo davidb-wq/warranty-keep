@@ -107,7 +107,7 @@ export default async function WarrantyDetailPage({
         <InfoRow
           icon={<Clock className="w-4 h-4" />}
           label="Rappel"
-          value={`${w.reminder_interval} mois avant l'expiration`}
+          value={formatReminderInterval(w.reminder_interval)}
         />
       </div>
 
@@ -122,6 +122,15 @@ export default async function WarrantyDetailPage({
       </form>
     </div>
   )
+}
+
+function formatReminderInterval(interval: number): string {
+  if (interval === 1) return 'Chaque mois'
+  if (interval === 3) return 'Chaque 3 mois'
+  if (interval === 12) return 'Chaque année'
+  if (interval === -3) return "3 mois avant l'expiration"
+  if (interval === -6) return "6 mois avant l'expiration"
+  return `${interval} mois`
 }
 
 function InfoRow({

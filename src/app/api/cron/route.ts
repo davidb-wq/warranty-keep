@@ -8,6 +8,7 @@ interface WarrantyWithExpiry {
   id: string
   user_id: string
   title: string
+  purchase_date: string
   expiry_date: string
   reminder_interval: number
 }
@@ -28,15 +29,11 @@ export async function GET(request: Request) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const twelveMonthsFromNow = new Date(today)
-  twelveMonthsFromNow.setMonth(twelveMonthsFromNow.getMonth() + 12)
-
-  // Fetch non-lifetime warranties expiring within 12 months
+  // Fetch all non-lifetime warranties that haven't expired yet
   const { data: warranties, error } = await supabase
     .from('warranties_with_expiry')
-    .select('id, user_id, title, expiry_date, reminder_interval')
+    .select('id, user_id, title, purchase_date, expiry_date, reminder_interval')
     .gte('expiry_date', today.toISOString().split('T')[0])
-    .lte('expiry_date', twelveMonthsFromNow.toISOString().split('T')[0])
 
   if (error) {
     console.error('Cron query error:', error)
@@ -60,12 +57,23 @@ export async function GET(request: Request) {
   let sent = 0
 
   for (const [userId, userWarranties] of Object.entries(byUser)) {
-    // Filter: only include warranties within each user's chosen reminder window
+    // Filter: apply reminder logic based on interval type
     const relevant = userWarranties.filter((w) => {
-      const daysLeft = Math.ceil(
-        (new Date(w.expiry_date).getTime() - today.getTime()) / 86400000
-      )
-      return daysLeft <= w.reminder_interval * 30
+      if (w.reminder_interval > 0) {
+        // Rolling: fire every N months from purchase date
+        const purchase = new Date(w.purchase_date)
+        const monthsSincePurchase =
+          (today.getFullYear() - purchase.getFullYear()) * 12 +
+          (today.getMonth() - purchase.getMonth())
+        return monthsSincePurchase > 0 && monthsSincePurchase % w.reminder_interval === 0
+      } else {
+        // Before expiry: fire once when entering the X-month window before expiration
+        const daysLeft = Math.ceil(
+          (new Date(w.expiry_date).getTime() - today.getTime()) / 86400000
+        )
+        const months = Math.abs(w.reminder_interval)
+        return daysLeft <= months * 30 && daysLeft > (months - 1) * 30
+      }
     })
 
     if (!relevant.length) continue

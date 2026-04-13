@@ -57,7 +57,7 @@ export default async function SettingsPage() {
                   Rappels automatiques
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Un email est envoyé automatiquement selon l&apos;intervalle choisi lors de l&apos;ajout de chaque garantie (3 ou 6 mois avant expiration). Le rappel est envoyé le 1er de chaque mois.
+                  Un email est envoyé automatiquement selon l&apos;option choisie pour chaque garantie. Options roulantes (chaque mois, 3 mois, 1 an) : rappel envoyé à intervalle régulier depuis la date d&apos;achat. Options ponctuelles (3 ou 6 mois avant expiration) : un seul rappel envoyé à l&apos;approche de la date d&apos;expiration. Les rappels sont envoyés le 1er de chaque mois.
                 </p>
               </div>
             </div>

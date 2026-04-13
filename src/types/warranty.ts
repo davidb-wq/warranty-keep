@@ -7,7 +7,7 @@ export interface Warranty {
   physical_location: string
   notes: string | null
   image_url: string | null
-  reminder_interval: 1 | 3 | 12
+  reminder_interval: 1 | 3 | 12 | -3 | -6
   created_at: string
 }
 

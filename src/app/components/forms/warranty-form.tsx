@@ -26,8 +26,8 @@ export function WarrantyForm({ defaultValues, warrantyId, userId }: WarrantyForm
     String(defaultValues?.warranty_months ?? 12)
   )
   const [physicalLocation, setPhysicalLocation] = useState(defaultValues?.physical_location ?? '')
-  const [reminderInterval, setReminderInterval] = useState<'1' | '3' | '12' | ''>(
-    defaultValues?.reminder_interval ? String(defaultValues.reminder_interval) as '1' | '3' | '12' : ''
+  const [reminderInterval, setReminderInterval] = useState<'1' | '3' | '12' | '-3' | '-6' | ''>(
+    defaultValues?.reminder_interval ? String(defaultValues.reminder_interval) as '1' | '3' | '12' | '-3' | '-6' : ''
   )
   const [notes, setNotes] = useState(defaultValues?.notes ?? '')
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -58,7 +58,7 @@ export function WarrantyForm({ defaultValues, warrantyId, userId }: WarrantyForm
       physical_location: physicalLocation.trim(),
       notes: notes.trim() || null,
       image_url: defaultValues?.image_url ?? null,
-      reminder_interval: parseInt(reminderInterval) as 1 | 3 | 12,
+      reminder_interval: parseInt(reminderInterval) as 1 | 3 | 12 | -3 | -6,
     }
 
     try {
@@ -181,7 +181,7 @@ export function WarrantyForm({ defaultValues, warrantyId, userId }: WarrantyForm
         </label>
         <select
           value={reminderInterval}
-          onChange={(e) => setReminderInterval(e.target.value as '1' | '3' | '12')}
+          onChange={(e) => setReminderInterval(e.target.value as '1' | '3' | '12' | '-3' | '-6')}
           required
           className="input"
         >
@@ -189,6 +189,8 @@ export function WarrantyForm({ defaultValues, warrantyId, userId }: WarrantyForm
           <option value="1">Chaque mois</option>
           <option value="3">Chaque 3 mois</option>
           <option value="12">Chaque année</option>
+          <option value="-3">3 mois avant l&apos;expiration</option>
+          <option value="-6">6 mois avant l&apos;expiration</option>
         </select>
       </div>
 
