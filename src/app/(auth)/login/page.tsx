@@ -7,9 +7,23 @@ import { useSearchParams } from 'next/navigation'
 
 const COOLDOWN_SECONDS = 60
 
+function formatCooldown(seconds: number): string {
+  if (seconds >= 3600) {
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    return m > 0 ? `${h}h ${m}min` : `${h}h`
+  }
+  if (seconds >= 60) {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return s > 0 ? `${m}min ${s}s` : `${m}min`
+  }
+  return `${seconds}s`
+}
+
 function translateError(message: string): string {
   if (message.includes('rate limit') || message.includes('too many') || message.includes('over_email_send_rate_limit')) {
-    return 'Trop de tentatives. Veuillez patienter avant de réessayer.'
+    return 'Trop de tentatives envoyées. Veuillez réessayer dans 1 heure.'
   }
   if (message.includes('invalid') || message.includes('Invalid')) {
     return 'Adresse email invalide.'
@@ -64,7 +78,7 @@ function LoginForm() {
       setLoading(false)
       // Démarrer un cooldown même en cas d'erreur de rate limit
       if (error.message.includes('rate limit') || error.message.includes('too many') || error.message.includes('over_email_send_rate_limit')) {
-        setCooldown(COOLDOWN_SECONDS)
+        setCooldown(3600) // Supabase bloque pendant ~1 heure
       }
       return
     }
@@ -93,7 +107,7 @@ function LoginForm() {
 
         {cooldown > 0 ? (
           <p className="text-xs text-slate-400 dark:text-slate-500">
-            Renvoyer dans {cooldown}s
+            Renvoyer dans {formatCooldown(cooldown)}
           </p>
         ) : (
           <button
@@ -142,7 +156,7 @@ function LoginForm() {
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : cooldown > 0 ? (
-            `Patienter ${cooldown}s`
+            `Réessayer dans ${formatCooldown(cooldown)}`
           ) : (
             <>
               Envoyer le lien
