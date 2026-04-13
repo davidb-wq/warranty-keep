@@ -75,7 +75,7 @@ export async function GET(request: Request) {
     if (userError || !userData?.user?.email) continue
 
     const userEmail = userData.user.email
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://warrantykeep.vercel.app'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://zen-garantie.vercel.app'
 
     const warrantyItems = relevant.map((w) => ({
       title: w.title,
