@@ -20,6 +20,11 @@
 - **Rappel par email** — 5 options disponibles (voir détail ci-dessous)
 - **Cron corrigé** — logique roulante ancrée sur `purchase_date`, scan de toutes les garanties actives
 - **Page d'accueil** — landing page publique sur `/` avec présentation de l'app et bouton de connexion
+- **Magic link corrigé** — 3 cas couverts : `?code=` PKCE forwarded vers `/auth/callback`, `?token_hash=` idem, `#access_token=` géré par `AuthHashHandler` côté client
+- **Supabase Redirect URL configurée** — `https://zen-garantie.vercel.app/auth/callback` ajoutée dans le dashboard (Authentication → URL Configuration)
+- **Upload photo corrigé** — deux boutons distincts (caméra + galerie), compression réduite à 800px, erreurs Supabase Storage affichées
+- **Photo obligatoire** — champ photo requis à la création d'une garantie (astérisque rouge, bouton désactivé sans photo)
+- **Message d'erreur mémoire** — si la compression échoue (manque de RAM sur l'appareil), message amber détaillé avec solutions affiché 30 secondes
 
 ### ⚠️ Limitation connue — Resend sans domaine custom
 Resend en mode gratuit sans domaine vérifié ne peut envoyer **qu'à l'email du compte Resend** (`davidblouin03@gmail.com`).
@@ -90,7 +95,7 @@ warranty-keep/
         ├── layout.tsx             # Root layout, metadata PWA, <SWRegister>
         ├── manifest.ts            # PWA manifest (display: standalone)
         ├── globals.css            # Tailwind + classe .input + pb-safe
-        ├── page.tsx               # Landing page publique (logo, features, CTA connexion)
+        ├── page.tsx               # Landing page publique — forwarde ?code/?token_hash vers /auth/callback, redirige si déjà connecté
         ├── not-found.tsx
         ├── (auth)/
         │   ├── layout.tsx         # Layout centré (pas de bottom nav)
@@ -117,7 +122,8 @@ warranty-keep/
             │   ├── warranty-form.tsx   # Formulaire add/edit partagé
             │   └── image-upload.tsx    # Camera/file + compression + preview
             └── providers/
-                └── sw-register.tsx    # Enregistre SW en production uniquement
+                ├── sw-register.tsx        # Enregistre SW en production uniquement
+                └── auth-hash-handler.tsx  # Détecte #access_token= (hash fragment) et redirige vers /warranties
 ```
 
 ---
@@ -224,6 +230,10 @@ create policy "Users can delete their own images"
    - Champ obligatoire, pas de défaut
 7. **Auth callback** — gère deux flux : `?code=` (PKCE) et `?token_hash=&type=` (confirm signup)
 8. **Templates email Supabase** — configurés dans le dashboard Supabase (Auth > Email Templates), sources sauvegardées dans `supabase/email-templates/`
+9. **Magic link fallback** — si Supabase redirige vers `/` au lieu de `/auth/callback`, `page.tsx` forwarde les params côté serveur ; `AuthHashHandler` gère le cas hash fragment côté client
+10. **Supabase Redirect URL** — `https://zen-garantie.vercel.app/auth/callback` doit être dans Authentication → URL Configuration → Redirect URLs
+11. **Upload photo** — deux inputs séparés : `capture="environment"` (caméra) et sans capture (galerie). `maxWidthOrHeight: 800` pour réduire la mémoire canvas. Limite 20 Mo avant compression. Photo obligatoire à la création.
+12. **Erreur mémoire compression** — catch retourne le code `'MEMORY_ERROR'`, affiche un message amber 30s avec solutions (fermer apps, utiliser galerie). Erreur Supabase Storage affichée à l'utilisateur si upload échoue.
 
 ## Design
 
