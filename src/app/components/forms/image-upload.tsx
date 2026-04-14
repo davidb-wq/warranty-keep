@@ -13,11 +13,20 @@ interface ImageUploadProps {
 export function ImageUpload({ value, onChange, existingUrl }: ImageUploadProps) {
   const [compressing, setCompressing] = useState(false)
   const [preview, setPreview] = useState<string | null>(existingUrl ?? null)
+  const [compressionError, setCompressionError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+
+    setCompressionError(null)
+
+    if (file.size > 20 * 1024 * 1024) {
+      setCompressionError('Image trop volumineuse (max 20 Mo). Choisissez une photo plus petite.')
+      if (inputRef.current) inputRef.current.value = ''
+      return
+    }
 
     setCompressing(true)
     try {
@@ -26,8 +35,9 @@ export function ImageUpload({ value, onChange, existingUrl }: ImageUploadProps) 
       setPreview(objectUrl)
       onChange(compressed)
     } catch {
-      onChange(file)
-      setPreview(URL.createObjectURL(file))
+      setCompressionError('Impossible de compresser cette image. Essayez une photo plus petite.')
+      onChange(null)
+      if (inputRef.current) inputRef.current.value = ''
     } finally {
       setCompressing(false)
     }
@@ -36,6 +46,7 @@ export function ImageUpload({ value, onChange, existingUrl }: ImageUploadProps) 
   function handleRemove() {
     setPreview(null)
     onChange(null)
+    setCompressionError(null)
     if (inputRef.current) inputRef.current.value = ''
   }
 
@@ -64,7 +75,6 @@ export function ImageUpload({ value, onChange, existingUrl }: ImageUploadProps) 
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={handleFileChange}
         className="hidden"
       />
@@ -90,6 +100,11 @@ export function ImageUpload({ value, onChange, existingUrl }: ImageUploadProps) 
           </>
         )}
       </button>
+      {compressionError && (
+        <p className="mt-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950 px-3 py-2 rounded-lg">
+          {compressionError}
+        </p>
+      )}
     </div>
   )
 }

@@ -91,16 +91,20 @@ export function WarrantyForm({ defaultValues, warrantyId, userId }: WarrantyForm
           .from('warranty-images')
           .upload(path, imageFile, { upsert: true })
 
-        if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage
-            .from('warranty-images')
-            .getPublicUrl(path)
-
-          await supabase
-            .from('warranties')
-            .update({ image_url: publicUrl })
-            .eq('id', currentId)
+        if (uploadError) {
+          setError('La garantie a été sauvegardée, mais la photo n\'a pas pu être uploadée : ' + uploadError.message)
+          setLoading(false)
+          return
         }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('warranty-images')
+          .getPublicUrl(path)
+
+        await supabase
+          .from('warranties')
+          .update({ image_url: publicUrl })
+          .eq('id', currentId)
       }
 
       router.push('/warranties')
