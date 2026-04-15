@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Mail, ArrowRight, Loader2 } from 'lucide-react'
-import { useSearchParams } from 'next/navigation'
+import { Mail, ArrowRight, Loader2, KeyRound } from 'lucide-react'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 const COOLDOWN_SECONDS = 60
 
@@ -21,14 +21,24 @@ function formatCooldown(seconds: number): string {
   return `${seconds}s`
 }
 
-function translateError(message: string): string {
+function translateSendError(message: string): string {
   if (message.includes('rate limit') || message.includes('too many') || message.includes('over_email_send_rate_limit')) {
-    return 'Trop de tentatives envoyées. Veuillez réessayer dans 1 heure.'
+    return 'Trop de tentatives. Veuillez réessayer dans 1 heure.'
   }
   if (message.includes('invalid') || message.includes('Invalid')) {
     return 'Adresse email invalide.'
   }
   return 'Une erreur est survenue. Veuillez réessayer.'
+}
+
+function translateVerifyError(message: string): string {
+  if (message.includes('expired') || message.includes('Token has expired')) {
+    return 'Ce code a expiré. Demandez-en un nouveau.'
+  }
+  if (message.includes('invalid') || message.includes('Invalid')) {
+    return 'Code incorrect. Vérifiez et réessayez.'
+  }
+  return 'Erreur de vérification. Veuillez réessayer.'
 }
 
 export default function LoginPage() {
@@ -43,13 +53,21 @@ function LoginForm() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
-  const [error, setError] = useState('')
+  const [sendError, setSendError] = useState('')
   const [cooldown, setCooldown] = useState(0)
+
+  // Étape 2 — vérification OTP
+  const [otp, setOtp] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [otpError, setOtpError] = useState('')
+
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const otpInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (searchParams.get('error') === 'auth_failed') {
-      setError('Le lien de connexion est invalide ou a expiré. Veuillez en demander un nouveau.')
+      setSendError('Une erreur d\'authentification est survenue. Veuillez réessayer.')
     }
   }, [searchParams])
 
@@ -59,79 +77,147 @@ function LoginForm() {
     return () => clearTimeout(timer)
   }, [cooldown])
 
-  async function handleSubmit(e: React.FormEvent) {
+  // Focus automatique sur le champ code quand l'étape 2 s'affiche
+  useEffect(() => {
+    if (sent) {
+      setTimeout(() => otpInputRef.current?.focus(), 100)
+    }
+  }, [sent])
+
+  async function handleSend(e: React.FormEvent) {
     e.preventDefault()
     if (cooldown > 0) return
     setLoading(true)
-    setError('')
+    setSendError('')
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
-    })
+    const { error } = await supabase.auth.signInWithOtp({ email })
 
     if (error) {
-      setError(translateError(error.message))
+      setSendError(translateSendError(error.message))
       setLoading(false)
-      // Démarrer un cooldown même en cas d'erreur de rate limit
       if (error.message.includes('rate limit') || error.message.includes('too many') || error.message.includes('over_email_send_rate_limit')) {
-        setCooldown(3600) // Supabase bloque pendant ~1 heure
+        setCooldown(3600)
       }
       return
     }
 
     setSent(true)
+    setOtp('')
+    setOtpError('')
     setCooldown(COOLDOWN_SECONDS)
     setLoading(false)
   }
 
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault()
+    if (otp.length !== 6) return
+    setVerifying(true)
+    setOtpError('')
+
+    const supabase = createClient()
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token: otp,
+      type: 'email',
+    })
+
+    if (error) {
+      setOtpError(translateVerifyError(error.message))
+      setVerifying(false)
+      return
+    }
+
+    router.push('/warranties')
+  }
+
+  // Étape 2 — saisie du code
   if (sent) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 text-center shadow-sm border border-slate-200 dark:border-slate-700">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 mb-4">
-          <Mail className="w-6 h-6 text-green-600 dark:text-green-400" />
-        </div>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-          Vérifiez votre courriel
-        </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">
-          Un lien de connexion a été envoyé à{' '}
-          <span className="font-medium text-slate-700 dark:text-slate-300">{email}</span>
-        </p>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mb-2">
-          Cliquez sur le lien dans le courriel pour vous connecter automatiquement. Ce lien est valide pendant <span className="font-medium">1 heure</span>.
-        </p>
-        <p className="text-xs text-amber-500 dark:text-amber-400 mb-6">
-          Si vous ne voyez pas le courriel, vérifiez votre dossier <span className="font-medium">indésirables / spam</span>.
-        </p>
-
-        {cooldown > 0 ? (
-          <p className="text-xs text-slate-400 dark:text-slate-500">
-            Renvoyer dans {formatCooldown(cooldown)}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-sm border border-slate-200 dark:border-slate-700">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700 mb-4">
+            <KeyRound className="w-6 h-6 text-slate-700 dark:text-slate-300" />
+          </div>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
+            Entrez votre code
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Un code à 6 chiffres a été envoyé à{' '}
+            <span className="font-medium text-slate-700 dark:text-slate-300">{email}</span>
           </p>
-        ) : (
+          <p className="text-xs text-amber-500 dark:text-amber-400 mt-2">
+            Vérifiez votre dossier <span className="font-medium">indésirables / spam</span> si vous ne le voyez pas.
+          </p>
+        </div>
+
+        <form onSubmit={handleVerify} className="space-y-4">
+          <div>
+            <label htmlFor="otp" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              Code de connexion
+            </label>
+            <input
+              ref={otpInputRef}
+              id="otp"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="123456"
+              required
+              className="w-full px-3.5 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white focus:border-transparent text-2xl font-mono tracking-[0.4em] text-center"
+            />
+          </div>
+
+          {otpError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{otpError}</p>
+          )}
+
           <button
-            onClick={() => { setSent(false); setCooldown(0) }}
-            className="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline"
+            type="submit"
+            disabled={verifying || otp.length !== 6}
+            className="w-full flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-2.5 px-4 rounded-xl font-medium text-sm hover:bg-slate-700 dark:hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            Renvoyer ou utiliser une autre adresse
+            {verifying ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                Se connecter
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
-        )}
+        </form>
+
+        <div className="mt-4 text-center">
+          {cooldown > 0 ? (
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              Renvoyer un code dans {formatCooldown(cooldown)}
+            </p>
+          ) : (
+            <button
+              onClick={() => { setSent(false); setOtp(''); setOtpError('') }}
+              className="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline"
+            >
+              Renvoyer ou utiliser une autre adresse
+            </button>
+          )}
+        </div>
       </div>
     )
   }
 
+  // Étape 1 — saisie de l'email
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-sm border border-slate-200 dark:border-slate-700">
       <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Connexion</h2>
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-        Entrez votre email pour recevoir un lien de connexion. Le compte sera créé automatiquement s&apos;il n&apos;existe pas encore.
+        Entrez votre email pour recevoir un code de connexion. Le compte sera créé automatiquement s&apos;il n&apos;existe pas encore.
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSend} className="space-y-4">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
             Adresse email
@@ -147,8 +233,8 @@ function LoginForm() {
           />
         </div>
 
-        {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        {sendError && (
+          <p className="text-sm text-red-600 dark:text-red-400">{sendError}</p>
         )}
 
         <button
@@ -162,7 +248,7 @@ function LoginForm() {
             `Réessayer dans ${formatCooldown(cooldown)}`
           ) : (
             <>
-              Envoyer le lien
+              Envoyer le code
               <ArrowRight className="w-4 h-4" />
             </>
           )}
