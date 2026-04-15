@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Mail, ArrowRight, Loader2 } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 
-const COOLDOWN_SECONDS = 60
+const COOLDOWN_SECONDS = 600
 
 function formatCooldown(seconds: number): string {
   if (seconds >= 3600) {
@@ -95,14 +95,17 @@ function LoginForm() {
           <Mail className="w-6 h-6 text-green-600 dark:text-green-400" />
         </div>
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-          Vérifiez votre email
+          Vérifiez votre courriel
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">
           Un lien de connexion a été envoyé à{' '}
           <span className="font-medium text-slate-700 dark:text-slate-300">{email}</span>
         </p>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mb-6">
-          Cliquez sur le lien dans l&apos;email pour vous connecter automatiquement.
+        <p className="text-xs text-slate-400 dark:text-slate-500 mb-2">
+          Cliquez sur le lien dans le courriel pour vous connecter automatiquement. Ce lien est valide pendant <span className="font-medium">1 heure</span>.
+        </p>
+        <p className="text-xs text-amber-500 dark:text-amber-400 mb-6">
+          Si vous ne voyez pas le courriel, vérifiez votre dossier <span className="font-medium">indésirables / spam</span>.
         </p>
 
         {cooldown > 0 ? (
