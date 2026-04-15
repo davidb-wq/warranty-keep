@@ -1,6 +1,6 @@
 # ZenGarantie — Guide de développement
 
-## État du projet (mis à jour le 2026-04-14)
+## État du projet (mis à jour le 2026-04-15 — auth OTP)
 
 ### ✅ Complété — Application 100% opérationnelle
 - Tout le code source écrit (39 fichiers, 1782 lignes)
@@ -8,23 +8,23 @@
 - Node.js installé et dans le PATH système
 - Repo GitHub : **https://github.com/davidb-wq/zen-garantie**
 - Déploiement Vercel : **https://zen-garantie.vercel.app**
-- Supabase configuré : table `warranties`, RLS, Storage bucket `warranty-images`, Magic Link activé
+- Supabase configuré : table `warranties`, RLS, Storage bucket `warranty-images`, OTP activé
 - Variables d'environnement configurées sur Vercel (6 variables)
-- URLs de redirection Supabase configurées pour Vercel
 - Resend configuré — emails envoyés depuis `onboarding@resend.dev`
 - Cron mensuel testé et fonctionnel (1er du mois à 9h UTC)
 - Email de test envoyé avec succès à `davidblouin03@gmail.com`
-- **Auth corrigée** — callback gère `code` (PKCE) et `token_hash` (confirmation signup)
+- **Auth OTP** — connexion et création de compte par code à 8 chiffres (remplace magic link) — compatible tous navigateurs et iOS Safari
 - **Rate limit** — countdown 60s sur le bouton d'envoi, erreurs traduites en français
-- **Templates email Supabase** personnalisés en français (Magic Link + Confirm signup)
+- **Templates email Supabase** — code OTP 8 chiffres avec `user-select:all` (Magic Link + Confirm signup), `{{ .Token }}`
 - **Rappel par email** — 5 options disponibles (voir détail ci-dessous)
 - **Cron corrigé** — logique roulante ancrée sur `purchase_date`, scan de toutes les garanties actives
 - **Page d'accueil** — landing page publique sur `/` avec présentation de l'app et bouton de connexion
-- **Magic link corrigé** — 3 cas couverts : `?code=` PKCE forwarded vers `/auth/callback`, `?token_hash=` idem, `#access_token=` géré par `AuthHashHandler` côté client
-- **Supabase Redirect URL configurée** — `https://zen-garantie.vercel.app/auth/callback` ajoutée dans le dashboard (Authentication → URL Configuration)
+- **Supabase Redirect URL configurée** — `https://zen-garantie.vercel.app/auth/callback` dans le dashboard (Authentication → URL Configuration)
 - **Upload photo corrigé** — deux boutons distincts (caméra + galerie), compression réduite à 800px, erreurs Supabase Storage affichées
 - **Photo obligatoire** — champ photo requis à la création d'une garantie (astérisque rouge, bouton désactivé sans photo)
 - **Message d'erreur mémoire** — si la compression échoue (manque de RAM sur l'appareil), message amber détaillé avec solutions affiché 30 secondes
+- **Brevo SMTP configuré** — emails auth envoyés via Brevo (smtp-relay.brevo.com:587), plus de limite 2 emails/heure de Supabase
+- **Édition garantie corrigée** — bouton "Enregistrer" actif si photo déjà existante (plus besoin de re-sélectionner une photo en mode édition)
 
 ### ⚠️ Limitation connue — Resend sans domaine custom
 Resend en mode gratuit sans domaine vérifié ne peut envoyer **qu'à l'email du compte Resend** (`davidblouin03@gmail.com`).
@@ -41,8 +41,9 @@ Le compte ZenGarantie utilise `davidblouin.5@hotmail.com` → les rappels automa
 ---
 
 ## Décisions prises
-- **Auth :** Magic Link uniquement (pas de mot de passe)
-- **Email :** domaine gratuit Resend (`onboarding@resend.dev`)
+- **Auth :** OTP 8 chiffres uniquement (pas de mot de passe, pas de magic link) — compatible tous navigateurs incluant Safari iOS
+- **Email auth (OTP) :** Brevo SMTP (`smtp-relay.brevo.com:587`) — 300 emails/jour gratuits, pas de limite Supabase
+- **Email rappels (cron) :** Resend (`onboarding@resend.dev`) — 3000 emails/mois gratuits
 - **Utilisateurs :** Multi-utilisateurs avec RLS Supabase
 - **Nom :** ZenGarantie
 
@@ -52,7 +53,8 @@ Le compte ZenGarantie utilise `davidblouin.5@hotmail.com` → les rappels automa
 - **Auth & BDD :** Supabase (tier gratuit)
 - **Stockage images :** Supabase Storage (1GB) — compression client-side avant upload
 - **Hébergement :** Vercel (tier gratuit)
-- **Emails :** Resend (3000 emails/mois gratuits)
+- **Emails auth :** Brevo (SMTP custom Supabase) — login Supabase : `a805df001@smtp-brevo.com`
+- **Emails rappels :** Resend (3000 emails/mois gratuits)
 
 ## Structure des fichiers
 
@@ -99,7 +101,7 @@ warranty-keep/
         ├── not-found.tsx
         ├── (auth)/
         │   ├── layout.tsx         # Layout centré (pas de bottom nav)
-        │   ├── login/page.tsx     # Formulaire magic link + countdown 60s anti-rate-limit
+        │   ├── login/page.tsx     # Flux OTP 2 étapes : email → code 8 chiffres → verifyOtp → /warranties
         │   └── auth/callback/route.ts  # Gère code (PKCE) ET token_hash (confirm signup)
         ├── (app)/
         │   ├── layout.tsx         # Auth guard (getUser) + BottomNav
@@ -136,6 +138,8 @@ warranty-keep/
 | Repo GitHub | https://github.com/davidb-wq/zen-garantie |
 | Supabase projet | https://djsntrzximssohhluwti.supabase.co |
 | Resend compte | davidblouin03@gmail.com |
+| Brevo compte | davidblouin03@gmail.com |
+| Brevo SMTP login | a805df001@smtp-brevo.com |
 
 ## Lancer l'app localement
 
@@ -228,12 +232,13 @@ create policy "Users can delete their own images"
    - `-6` — 6 mois avant l'expiration (ponctuel, une seule fois)
    - Valeurs négatives = rappels ponctuels avant expiration; positives = rappels roulants ancrés sur `purchase_date`
    - Champ obligatoire, pas de défaut
-7. **Auth callback** — gère deux flux : `?code=` (PKCE) et `?token_hash=&type=` (confirm signup)
-8. **Templates email Supabase** — configurés dans le dashboard Supabase (Auth > Email Templates), sources sauvegardées dans `supabase/email-templates/`
-9. **Magic link fallback** — si Supabase redirige vers `/` au lieu de `/auth/callback`, `page.tsx` forwarde les params côté serveur ; `AuthHashHandler` gère le cas hash fragment côté client
-10. **Supabase Redirect URL** — `https://zen-garantie.vercel.app/auth/callback` doit être dans Authentication → URL Configuration → Redirect URLs
-11. **Upload photo** — deux inputs séparés : `capture="environment"` (caméra) et sans capture (galerie). `maxWidthOrHeight: 800` pour réduire la mémoire canvas. Limite 20 Mo avant compression. Photo obligatoire à la création.
-12. **Erreur mémoire compression** — catch retourne le code `'MEMORY_ERROR'`, affiche un message amber 30s avec solutions (fermer apps, utiliser galerie). Erreur Supabase Storage affichée à l'utilisateur si upload échoue.
+7. **Auth OTP** — `signInWithOtp({ email })` sans `emailRedirectTo` → Supabase envoie un code 8 chiffres. Vérification : `verifyOtp({ email, token, type: 'email' })`. Fonctionne sur tous les navigateurs (pas de PKCE, pas de redirect).
+8. **Auth callback** — toujours en place pour le flux `?token_hash=&type=` (confirm signup legacy) et `?code=` (PKCE si jamais utilisé)
+9. **Templates email Supabase** — configurés dans le dashboard (Auth > Email Templates), variable `{{ .Token }}` pour le code OTP, `user-select:all` pour faciliter la copie. Sources dans `supabase/email-templates/`. OTP expiry = 3600s (1 heure).
+10. **Brevo SMTP** — Supabase → Authentication → Sign In / Providers → SMTP Settings. Host: `smtp-relay.brevo.com`, Port: `587`, Username: `a805df001@smtp-brevo.com`. Sender: `davidblouin03@gmail.com` / `ZenGarantie`. Remplace le serveur email intégré de Supabase (limité à 2/h).
+11. **Supabase Redirect URL** — `https://zen-garantie.vercel.app/auth/callback` dans Authentication → URL Configuration → Redirect URLs
+12. **Upload photo** — deux inputs séparés : `capture="environment"` (caméra) et sans capture (galerie). `maxWidthOrHeight: 800` pour réduire la mémoire canvas. Limite 20 Mo avant compression. Photo obligatoire à la création.
+13. **Erreur mémoire compression** — catch retourne le code `'MEMORY_ERROR'`, affiche un message amber 30s avec solutions (fermer apps, utiliser galerie). Erreur Supabase Storage affichée à l'utilisateur si upload échoue.
 
 ## Design
 
