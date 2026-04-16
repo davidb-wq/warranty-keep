@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { LogOut, Bell, Info } from 'lucide-react'
+import { InstallSettingsRow } from '@/app/components/ui/install-settings-row'
 
 async function signOut() {
   'use server'
@@ -41,6 +42,16 @@ export default async function SettingsPage() {
                 <span className="text-sm font-medium">Se déconnecter</span>
               </button>
             </form>
+          </div>
+        </section>
+
+        {/* Install app */}
+        <section>
+          <h2 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 px-1">
+            Application
+          </h2>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <InstallSettingsRow />
           </div>
         </section>
 
