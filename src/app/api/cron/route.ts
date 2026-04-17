@@ -113,8 +113,8 @@ export async function GET(request: Request) {
     }))
 
     const subject = relevant.length === 1
-      ? `Rappel : "${relevant[0].title}" expire bientôt`
-      : `Rappel : ${relevant.length} garanties expirent bientôt`
+      ? `Rappel de garantie — "${relevant[0].title}"`
+      : `Rappel de garanties — ${relevant.length} garanties`
 
     const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',

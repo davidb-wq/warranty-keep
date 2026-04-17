@@ -63,8 +63,8 @@ export function WarrantyReminderEmail({
             </Text>
             <Text style={{ color: '#475569', fontSize: '14px', lineHeight: '1.6', margin: '0 0 24px' }}>
               {warranties.length === 1
-                ? 'La garantie suivante expire bientôt :'
-                : `Les ${warranties.length} garanties suivantes expirent bientôt :`}
+                ? 'Voici un rappel pour la garantie suivante :'
+                : `Voici un rappel pour les ${warranties.length} garanties suivantes :`}
             </Text>
 
             {warranties.map((w, i) => (
@@ -106,7 +106,7 @@ export function WarrantyReminderEmail({
             </Button>
 
             <Text style={{ color: '#94a3b8', fontSize: '12px', marginTop: '24px', marginBottom: 0 }}>
-              Vous recevez cet email car votre compte ZenGarantie ({email}) a des garanties qui expirent prochainement.
+              Vous recevez cet email car votre compte ZenGarantie ({email}) a des rappels de garanties configurés.
             </Text>
           </Section>
         </Container>
