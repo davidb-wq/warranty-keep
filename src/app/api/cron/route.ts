@@ -12,9 +12,12 @@ interface WarrantyWithExpiry {
 }
 
 export async function GET(request: Request) {
-  // Verify the request comes from Vercel cron (or manual test)
+  // Verify the request is authorized: Vercel cron header OR valid Bearer secret
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const isVercelCron = request.headers.get('x-vercel-cron') === '1'
+  const hasValidSecret = !!process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`
+
+  if (!isVercelCron && !hasValidSecret) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -124,8 +127,13 @@ export async function GET(request: Request) {
       }),
     })
 
-    if (brevoRes.ok) sent++
+    if (brevoRes.ok) {
+      sent++
+    } else {
+      const errorBody = await brevoRes.text()
+      console.error(`Brevo error for ${userEmail} — status ${brevoRes.status}: ${errorBody}`)
+    }
   }
 
-  return Response.json({ sent, total: warranties.length })
+  return Response.json({ sent, total: warranties.length, errors: Object.keys(byUser).length - sent })
 }
