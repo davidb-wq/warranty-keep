@@ -1,6 +1,6 @@
 # ZenGarantie — Guide de développement
 
-## État du projet (mis à jour le 2026-04-20 — Conformité Loi 25 Québec ajoutée)
+## État du projet (mis à jour le 2026-04-20 — Conformité Loi 25 complète)
 
 ### ✅ Complété — Application 100% opérationnelle
 - Tout le code source écrit
@@ -32,9 +32,11 @@
 - **Audit sécurité complété** — aucune clé secrète dans git, CRON_SECRET renforcé (64 chars hex aléatoires), double vérification auth cron (`x-vercel-cron` + Bearer), security headers HTTP ajoutés
 - **Wording email rappel neutralisé** — sujet : `Rappel de garantie — "X"` (plus de "expire bientôt") ; corps : "Voici un rappel pour la garantie suivante :" — cohérent avec les rappels roulants (chaque mois/3 mois/an) et les rappels ponctuels avant expiration
 - **Conformité Loi 25 Québec** — politique de confidentialité publique à `/confidentialite`, avis sur la page de connexion, section Confidentialité dans Paramètres (export JSON, suppression de compte)
+- **Photos privées (signed URLs)** — bucket `warranty-images` privé, accès via signed URLs valables 1h générées côté serveur. `image_url` en base = chemin relatif (`{user_id}/{warranty_id}.webp`), rétrocompatible avec les anciennes URLs complètes
+- **Notification changement de politique** — bannière fixe au-dessus de la BottomNav si `user.user_metadata.policy_version_accepted !== CURRENT_POLICY_VERSION`. Disparaît après clic "J'ai compris" (met à jour les métadonnées Supabase). Mettre à jour `src/lib/policy-version.ts` pour déclencher la bannière chez tous les utilisateurs
 
 ### 🔧 Reste à faire (optionnel)
-- **Signed URLs pour Storage** — les photos de garanties sont actuellement en accès public (URL directe). Migrer vers des signed URLs Supabase pour restreindre l'accès aux propriétaires authentifiés (conformité Loi 25 complète)
+- Aucun — conformité Loi 25 complète ✅
 
 ---
 
@@ -87,6 +89,7 @@ warranty-keep/
     │   │   ├── client.ts          # createBrowserClient
     │   │   └── server.ts          # createServerClient (cookies)
     │   ├── image-compression.ts   # browser-image-compression → 0.5MB max, WebP
+    │   ├── policy-version.ts      # CURRENT_POLICY_VERSION — changer pour déclencher la bannière chez tous
     │   └── warranty-utils.ts      # getExpiryDate, getWarrantyStatus, STATUS_STYLES
     ├── types/
     │   └── warranty.ts            # interface Warranty, WarrantyStatus
@@ -123,7 +126,8 @@ warranty-keep/
             │   ├── expiry-badge.tsx        # Pill coloré selon statut
             │   ├── install-sheet.tsx       # Bottom sheet PWA install (1ère visite) — Android + iOS
             │   ├── install-settings-row.tsx  # Ligne install dans Paramètres (permanente)
-            │   └── delete-account-button.tsx  # Bouton suppression compte — confirmation 2 étapes, nettoie Storage + BDD + auth
+            │   ├── delete-account-button.tsx  # Bouton suppression compte — confirmation 2 étapes, nettoie Storage + BDD + auth
+            │   └── policy-banner.tsx       # Bannière Loi 25 — s'affiche si version politique non acceptée, disparaît après clic "J'ai compris"
             ├── forms/
             │   ├── warranty-form.tsx   # Formulaire add/edit partagé
             │   └── image-upload.tsx    # Camera/file + compression + preview
@@ -205,9 +209,10 @@ create policy "Users can upload to their own folder"
   on storage.objects for insert to authenticated
   with check (bucket_id = 'warranty-images' AND (storage.foldername(name))[1] = auth.uid()::text);
 
-create policy "Public read access"
-  on storage.objects for select to public
-  using (bucket_id = 'warranty-images');
+-- ⚠️ "Public read access" supprimée — remplacée par accès authentifié uniquement (signed URLs)
+create policy "Users can view their own images"
+  on storage.objects for select to authenticated
+  using (bucket_id = 'warranty-images' AND (storage.foldername(name))[1] = auth.uid()::text);
 
 create policy "Users can delete their own images"
   on storage.objects for delete to authenticated
@@ -257,6 +262,8 @@ create policy "Users can delete their own images"
 - **`/confidentialite`** — politique de confidentialité publique (hors route groups `(auth)` et `(app)`), accessible sans connexion
 - **Avis de connexion** — texte + lien vers `/confidentialite` en bas de la page `/login`, après le formulaire email (couvre OTP + OAuth)
 - **Paramètres → Confidentialité** — 3 actions : exporter données (JSON), voir politique, supprimer compte
+- **Photos privées** — bucket privé + signed URLs 1h côté serveur (`createSignedUrl`). `image_url` en base = chemin relatif. Rétrocompatible : si `image_url` contient `/warranty-images/`, on extrait le chemin automatiquement
+- **Bannière notification politique** — `policy-banner.tsx` + `policy-version.ts`. Logique dans `(app)/layout.tsx` : compare `user.user_metadata.policy_version_accepted` avec `CURRENT_POLICY_VERSION`
 
 ### Suppression de compte (`deleteAccount` Server Action dans `settings/page.tsx`)
 Ordre d'opération critique :
