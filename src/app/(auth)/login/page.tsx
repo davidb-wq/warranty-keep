@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowRight, Loader2, KeyRound } from 'lucide-react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 function MicrosoftIcon() {
   return (
@@ -314,6 +315,21 @@ function LoginForm() {
           )}
         </button>
       </form>
+
+      {/* Avis de confidentialité — couvre OTP et OAuth */}
+      <p className="text-xs text-center text-slate-400 dark:text-slate-500 mt-4 leading-relaxed">
+        En vous connectant, vous acceptez que ZenGarantie traite votre
+        adresse email conformément à notre{' '}
+        <Link
+          href="/confidentialite"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+        >
+          politique de confidentialité
+        </Link>
+        .
+      </p>
     </div>
   )
 }

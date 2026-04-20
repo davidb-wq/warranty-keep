@@ -1,12 +1,45 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { LogOut, Bell, Info } from 'lucide-react'
+import { LogOut, Bell, Info, Download, Shield } from 'lucide-react'
+import Link from 'next/link'
 import { InstallSettingsRow } from '@/app/components/ui/install-settings-row'
+import { DeleteAccountButton } from '@/app/components/ui/delete-account-button'
 
 async function signOut() {
   'use server'
   const supabase = await createClient()
   await supabase.auth.signOut()
+  redirect('/login')
+}
+
+async function deleteAccount() {
+  'use server'
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  // Récupérer les IDs pour nettoyer le Storage
+  const { data: warranties } = await supabase
+    .from('warranties')
+    .select('id')
+
+  // Supprimer les photos du Storage
+  if (warranties && warranties.length > 0) {
+    const paths = warranties.map((w: { id: string }) => `${user.id}/${w.id}.webp`)
+    await supabase.storage.from('warranty-images').remove(paths)
+  }
+
+  // Supprimer les garanties (RLS assure user_id = user)
+  await supabase.from('warranties').delete().eq('user_id', user.id)
+
+  // Supprimer le compte auth via service role
+  const { createClient: createAdminClient } = await import('@supabase/supabase-js')
+  const admin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  await admin.auth.admin.deleteUser(user.id)
+
   redirect('/login')
 }
 
@@ -72,6 +105,42 @@ export default async function SettingsPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Confidentialité */}
+        <section>
+          <h2 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 px-1">
+            Confidentialité
+          </h2>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            {/* Export données */}
+            <a
+              href="/api/export"
+              download
+              className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-700"
+            >
+              <Download className="w-4 h-4 text-slate-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-slate-900 dark:text-white">Exporter mes données</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Télécharger toutes vos garanties en JSON</p>
+              </div>
+            </a>
+
+            {/* Politique de confidentialité */}
+            <Link
+              href="/confidentialite"
+              className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-700"
+            >
+              <Shield className="w-4 h-4 text-slate-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-slate-900 dark:text-white">Politique de confidentialité</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Loi 25 — vos droits et nos pratiques</p>
+              </div>
+            </Link>
+
+            {/* Suppression compte */}
+            <DeleteAccountButton deleteAction={deleteAccount} />
           </div>
         </section>
 
