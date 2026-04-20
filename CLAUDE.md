@@ -1,6 +1,6 @@
 # ZenGarantie — Guide de développement
 
-## État du projet (mis à jour le 2026-04-17 — OAuth Google + Microsoft ajoutés)
+## État du projet (mis à jour le 2026-04-20 — Conformité Loi 25 Québec ajoutée)
 
 ### ✅ Complété — Application 100% opérationnelle
 - Tout le code source écrit
@@ -31,9 +31,10 @@
 - **Icônes PWA générées dynamiquement** — route `/api/pwa-icon/[size]` via `ImageResponse`, manifest mis à jour (plus besoin de fichiers PNG manuels)
 - **Audit sécurité complété** — aucune clé secrète dans git, CRON_SECRET renforcé (64 chars hex aléatoires), double vérification auth cron (`x-vercel-cron` + Bearer), security headers HTTP ajoutés
 - **Wording email rappel neutralisé** — sujet : `Rappel de garantie — "X"` (plus de "expire bientôt") ; corps : "Voici un rappel pour la garantie suivante :" — cohérent avec les rappels roulants (chaque mois/3 mois/an) et les rappels ponctuels avant expiration
+- **Conformité Loi 25 Québec** — politique de confidentialité publique à `/confidentialite`, avis sur la page de connexion, section Confidentialité dans Paramètres (export JSON, suppression de compte)
 
 ### 🔧 Reste à faire (optionnel)
-- Rien — application complète
+- **Signed URLs pour Storage** — les photos de garanties sont actuellement en accès public (URL directe). Migrer vers des signed URLs Supabase pour restreindre l'accès aux propriétaires authentifiés (conformité Loi 25 complète)
 
 ---
 
@@ -95,6 +96,8 @@ warranty-keep/
         ├── globals.css            # Tailwind + classe .input + pb-safe
         ├── page.tsx               # Landing page publique — forwarde ?code/?token_hash vers /auth/callback, redirige si déjà connecté
         ├── not-found.tsx
+        ├── confidentialite/
+        │   └── page.tsx           # Politique de confidentialité publique — 10 sections, Loi 25 Québec, accessible sans auth
         ├── (auth)/
         │   ├── layout.tsx         # Layout centré (pas de bottom nav)
         │   ├── login/page.tsx     # Boutons OAuth (Google, Microsoft) + flux OTP 2 étapes : email → code 8 chiffres → verifyOtp → /warranties
@@ -111,6 +114,7 @@ warranty-keep/
         │   └── settings/page.tsx  # Déconnexion + info rappels + bouton install PWA
         ├── api/
         │   ├── cron/route.ts      # Cron quotidien : scan + envoi Brevo API
+        │   ├── export/route.ts    # GET — téléchargement des garanties en JSON (droit à la portabilité, Loi 25)
         │   └── pwa-icon/[size]/route.tsx  # Icônes PWA générées dynamiquement (ImageResponse, edge runtime)
         └── components/
             ├── ui/
@@ -118,7 +122,8 @@ warranty-keep/
             │   ├── warranty-card.tsx       # Carte avec bordure colorée + badge lieu
             │   ├── expiry-badge.tsx        # Pill coloré selon statut
             │   ├── install-sheet.tsx       # Bottom sheet PWA install (1ère visite) — Android + iOS
-            │   └── install-settings-row.tsx  # Ligne install dans Paramètres (permanente)
+            │   ├── install-settings-row.tsx  # Ligne install dans Paramètres (permanente)
+            │   └── delete-account-button.tsx  # Bouton suppression compte — confirmation 2 étapes, nettoie Storage + BDD + auth
             ├── forms/
             │   ├── warranty-form.tsx   # Formulaire add/edit partagé
             │   └── image-upload.tsx    # Camera/file + compression + preview
@@ -245,6 +250,32 @@ create policy "Users can delete their own images"
 - `viewport-fit=cover` dans le viewport meta tag
 - Couleurs par statut : vert (actif) / amber (expire bientôt ≤90j) / rouge (expiré) / gris (à vie)
 - Classe utilitaire `.input` définie dans `globals.css`
+
+## Conformité Loi 25 Québec
+
+### Pages et fonctionnalités ajoutées
+- **`/confidentialite`** — politique de confidentialité publique (hors route groups `(auth)` et `(app)`), accessible sans connexion
+- **Avis de connexion** — texte + lien vers `/confidentialite` en bas de la page `/login`, après le formulaire email (couvre OTP + OAuth)
+- **Paramètres → Confidentialité** — 3 actions : exporter données (JSON), voir politique, supprimer compte
+
+### Suppression de compte (`deleteAccount` Server Action dans `settings/page.tsx`)
+Ordre d'opération critique :
+1. Récupérer les IDs des garanties (`select('id')`)
+2. Supprimer les photos dans Storage (`warranty-images/{user_id}/{warranty_id}.webp`)
+3. Supprimer les lignes de la table `warranties`
+4. Supprimer l'utilisateur auth via `admin.auth.admin.deleteUser(user.id)` — nécessite `SUPABASE_SERVICE_ROLE_KEY`
+5. Redirect vers `/login`
+
+### Export données (`/api/export`)
+- Route GET, protégée (retourne 401 si non authentifié)
+- Retourne JSON avec `exported_at`, `user_email`, `warranties[]`
+- Header `Content-Disposition: attachment` pour déclencher le téléchargement
+- Le lien dans Paramètres utilise `<a href="/api/export" download>` (pas un Server Action — les Server Actions ne peuvent pas streamer des fichiers)
+
+### Middleware — aucun changement nécessaire
+`/confidentialite` n'est ni dans `isAppRoute` ni dans les redirects `/login`/`/`, donc passe sans redirection pour tous les utilisateurs.
+
+---
 
 ## Tester le cron manuellement
 
