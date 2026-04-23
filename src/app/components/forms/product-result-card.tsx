@@ -86,7 +86,7 @@ export function ProductResultCard({ product, onDismiss }: ProductResultCardProps
         <div className="flex items-start gap-2.5">
           <WarrantyIcon className={`w-5 h-5 mt-0.5 shrink-0 ${styles.iconColor}`} />
           <p className={`text-sm font-medium leading-snug ${styles.textColor}`}>
-            {product.warrantyMessage}
+            {product.warrantyMessage ?? 'Nous n\'avons pas pu déterminer si ce produit est couvert par une garantie fabricant.'}
           </p>
         </div>
       </div>

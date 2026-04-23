@@ -2,15 +2,31 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { BarcodeResult, WarrantyLikelihood } from '@/types/barcode'
 
+// Marques connues pour leurs garanties fabricant
+const WARRANTY_BRANDS = [
+  'stanley', 'dewalt', 'milwaukee', 'bosch', 'makita', 'ryobi', 'craftsman',
+  'black+decker', 'black & decker', 'ridgid', 'porter-cable', 'hitachi',
+  'samsung', 'lg', 'sony', 'apple', 'microsoft', 'dell', 'hp', 'lenovo',
+  'asus', 'acer', 'canon', 'nikon', 'panasonic', 'philips', 'dyson',
+  'shark', 'bissell', 'roomba', 'irobot', 'kitchenaid', 'cuisinart',
+  'breville', 'instant pot', 'ninja', 'vitamix', 'whirlpool', 'ge', 'maytag',
+  'frigidaire', 'kenmore', 'miele', 'electrolux', 'bose', 'jbl', 'harman',
+  'logitech', 'razer', 'corsair', 'weber', 'traeger', 'dewalt', 'fluke',
+]
+
 const WARRANTY_KEYWORDS = [
   'electron', 'phone', 'laptop', 'computer', 'tablet', 'tv', 'television',
   'camera', 'appliance', 'washing', 'refrigerator', 'dishwasher', 'microwave',
   'oven', 'vacuum', 'printer', 'monitor', 'speaker', 'headphone', 'earphone',
-  'watch', 'tool', 'drill', 'saw', 'blender', 'coffee maker', 'kettle', 'iron',
+  'watch', 'tool', 'drill', 'saw', 'blender', 'coffee', 'kettle', 'iron',
   'machine', 'power', 'electric', 'battery', 'charger', 'gaming', 'console',
   'audio', 'video', 'security', 'alarm', 'smart', 'robot', 'projector',
-  'scanner', 'router', 'modem', 'keyboard', 'mouse', 'headset', 'fan',
-  'heater', 'air', 'conditioner', 'purifier', 'humidifier', 'dehumidifier',
+  'router', 'modem', 'keyboard', 'mouse', 'headset', 'fan', 'heater',
+  'purifier', 'humidifier', 'dehumidifier', 'compressor', 'generator',
+  'nozzle', 'sprayer', 'sprinkler', 'hose', 'pump', 'garden tool',
+  'wrench', 'screwdriver', 'hammer', 'plier', 'level', 'measure',
+  'grinder', 'sander', 'cutter', 'stapler', 'nailer', 'flashlight',
+  'ladder', 'jack', 'clamp', 'vise', 'workbench',
 ]
 
 const NO_WARRANTY_KEYWORDS = [
@@ -25,6 +41,7 @@ const NO_WARRANTY_KEYWORDS = [
 function assessWarranty(
   title: string = '',
   category: string = '',
+  brand: string = '',
   source: 'upcitemdb' | 'openfoodfacts'
 ): { likelihood: WarrantyLikelihood; message: string } {
   if (source === 'openfoodfacts') {
@@ -35,6 +52,15 @@ function assessWarranty(
   }
 
   const text = `${title} ${category}`.toLowerCase()
+  const brandLower = brand.toLowerCase()
+
+  // Marque connue → garantie probable
+  if (WARRANTY_BRANDS.some((b) => brandLower.includes(b) || b.includes(brandLower) && brandLower.length > 3)) {
+    return {
+      likelihood: 'probable',
+      message: 'Selon nos sources, ce type de produit est généralement couvert par une garantie fabricant.',
+    }
+  }
 
   if (WARRANTY_KEYWORDS.some((k) => text.includes(k))) {
     return {
@@ -79,7 +105,7 @@ export async function GET(
       const data = await upcRes.json()
       const item = data?.items?.[0]
       if (item) {
-        const { likelihood, message } = assessWarranty(item.title, item.category, 'upcitemdb')
+        const { likelihood, message } = assessWarranty(item.title, item.category, item.brand ?? '', 'upcitemdb')
         const result: BarcodeResult = {
           found: true,
           name: item.title || undefined,
@@ -103,7 +129,7 @@ export async function GET(
       const offData = await offRes.json()
       if (offData?.status === 1 && offData?.product) {
         const p = offData.product
-        const { likelihood, message } = assessWarranty('', '', 'openfoodfacts')
+        const { likelihood, message } = assessWarranty('', '', '', 'openfoodfacts')
         const result: BarcodeResult = {
           found: true,
           name: p.product_name_fr || p.product_name || undefined,
