@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { Barcode, Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import { BarcodeScannerModal } from '@/app/components/forms/barcode-scanner-modal'
 import { ProductResultCard } from '@/app/components/forms/product-result-card'
 import type { BarcodeResult } from '@/types/barcode'
 
 const MAX_SCANS = 3
+const UNLIMITED_EMAIL = 'davidblouin03@gmail.com'
 
 function getScanUsage(): { date: string; count: number } {
   try {
@@ -35,16 +37,30 @@ export function DashboardScanner() {
   const [scannedProduct, setScannedProduct] = useState<BarcodeResult | null>(null)
   const [scanLoading, setScanLoading] = useState(false)
   const [remaining, setRemaining] = useState(MAX_SCANS)
+  const [unlimited, setUnlimited] = useState(false)
 
   useEffect(() => {
-    setRemaining(getRemainingScans())
+    async function init() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.email === UNLIMITED_EMAIL) {
+        setUnlimited(true)
+      } else {
+        setRemaining(getRemainingScans())
+      }
+    }
+    init()
   }, [])
+
+  const canScan = unlimited || remaining > 0
 
   async function handleScan(barcode: string) {
     setScannerOpen(false)
     setScanLoading(true)
-    incrementScanCount()
-    setRemaining(getRemainingScans())
+    if (!unlimited) {
+      incrementScanCount()
+      setRemaining(getRemainingScans())
+    }
 
     try {
       const res = await fetch(`/api/barcode/${barcode}`)
@@ -61,10 +77,10 @@ export function DashboardScanner() {
     <div className="mb-5">
       <button
         type="button"
-        onClick={() => remaining > 0 ? setScannerOpen(true) : undefined}
-        disabled={remaining === 0}
+        onClick={() => canScan ? setScannerOpen(true) : undefined}
+        disabled={!canScan}
         className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed text-sm font-medium transition-colors ${
-          remaining > 0
+          canScan
             ? 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:text-slate-700 dark:hover:text-slate-200'
             : 'border-slate-100 dark:border-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed'
         }`}
@@ -73,7 +89,11 @@ export function DashboardScanner() {
         Scanner un code-barres produit
       </button>
 
-      {remaining > 0 ? (
+      {unlimited ? (
+        <p className="mt-3 text-center text-xs text-slate-400 dark:text-slate-500">
+          Scans illimités
+        </p>
+      ) : remaining > 0 ? (
         <p className="mt-3 text-center text-xs text-slate-400 dark:text-slate-500">
           {remaining}/{MAX_SCANS} scan{remaining > 1 ? 's' : ''} restant{remaining > 1 ? 's' : ''}{' '}aujourd&apos;hui
         </p>
