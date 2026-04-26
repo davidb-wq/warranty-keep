@@ -213,7 +213,7 @@ export default function PolitiqueConfidentialitePage() {
           <ul className="list-disc list-inside space-y-1 mt-1">
             <li>Transmission chiffrée via HTTPS (TLS)</li>
             <li>Authentification par code à usage unique (OTP) ou OAuth PKCE (Google, Microsoft)</li>
-            <li>Politiques de sécurité au niveau des lignes (Row-Level Security) dans Supabase — vous n&apos;accédez qu&apos;à vos propres données</li>
+            <li>Contrôle d&apos;accès au niveau des données — vous n&apos;accédez qu&apos;à vos propres renseignements</li>
             <li>Aucune clé secrète exposée côté client</li>
             <li>Accès au stockage des photos restreint à votre dossier personnel</li>
           </ul>
