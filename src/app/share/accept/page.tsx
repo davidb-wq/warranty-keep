@@ -105,8 +105,9 @@ export default async function ShareAcceptPage({
     )
   }
 
-  // ✅ Logged in with matching email → auto-accept via user session (accept_by_email RLS handles auth)
-  const { error } = await supabase
+  // ✅ Logged in with matching email → accept via service role
+  // All security checks (email match, expiry) already validated above in server code
+  const { error } = await admin
     .from('shared_access')
     .update({
       status: 'accepted',
