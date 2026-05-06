@@ -105,7 +105,6 @@ export default async function ShareAcceptPage({
     })
     .eq('token', token)
     .eq('status', 'pending')
-    .eq('invitee_email', record.invitee_email)
 
   if (error) {
     return (
