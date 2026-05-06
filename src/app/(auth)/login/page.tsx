@@ -109,11 +109,14 @@ function LoginForm() {
   }, [sent])
 
   async function handleOAuthSignIn(provider: 'google' | 'azure') {
+    const redirect = searchParams.get('redirect')
+    const safeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('//')
+      ? redirect : '/warranties'
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeRedirect)}`,
       },
     })
   }
@@ -162,7 +165,10 @@ function LoginForm() {
       return
     }
 
-    router.push('/warranties')
+    const redirect = searchParams.get('redirect')
+    const destination = redirect && redirect.startsWith('/') && !redirect.startsWith('//')
+      ? redirect : '/warranties'
+    router.push(destination)
   }
 
   // Étape 2 — saisie du code

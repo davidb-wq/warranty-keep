@@ -4,12 +4,12 @@ import { getWarrantyStatus, STATUS_BORDER } from '@/lib/warranty-utils'
 import { ExpiryBadge } from './expiry-badge'
 import type { Warranty } from '@/types/warranty'
 
-export function WarrantyCard({ warranty, signedImageUrl }: { warranty: Warranty; signedImageUrl?: string | null }) {
+export function WarrantyCard({ warranty, signedImageUrl, hrefOverride }: { warranty: Warranty; signedImageUrl?: string | null; hrefOverride?: string }) {
   const status = getWarrantyStatus(warranty)
 
   return (
     <Link
-      href={`/warranties/${warranty.id}`}
+      href={hrefOverride ?? `/warranties/${warranty.id}`}
       className="block bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:border-slate-300 dark:hover:border-slate-600 transition-colors active:scale-[0.99] transition-transform"
     >
       <div className={`flex border-l-4 ${STATUS_BORDER[status]}`}>

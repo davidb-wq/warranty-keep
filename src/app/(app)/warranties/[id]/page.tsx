@@ -17,10 +17,14 @@ async function deleteWarranty(id: string, userId: string) {
 
 export default async function WarrantyDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ shared?: string }>
 }) {
   const { id } = await params
+  const { shared } = await searchParams
+  const isShared = shared === 'true'
   const supabase = await createClient()
   const { data: warranty } = await supabase
     .from('warranties')
@@ -54,7 +58,7 @@ export default async function WarrantyDetailPage({
     <div className="px-4 pt-6 pb-4">
       <div className="flex items-center gap-3 mb-6">
         <Link
-          href="/warranties"
+          href={isShared ? '/warranties?tab=shared' : '/warranties'}
           className="p-2 -ml-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -62,12 +66,14 @@ export default async function WarrantyDetailPage({
         <h1 className="text-lg font-bold text-slate-900 dark:text-white flex-1 line-clamp-1">
           {w.title}
         </h1>
-        <Link
-          href={`/warranties/${w.id}/edit`}
-          className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
-        >
-          <Pencil className="w-5 h-5" />
-        </Link>
+        {!isShared && (
+          <Link
+            href={`/warranties/${w.id}/edit`}
+            className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+          >
+            <Pencil className="w-5 h-5" />
+          </Link>
+        )}
       </div>
 
       <div className="mb-4">
@@ -121,15 +127,17 @@ export default async function WarrantyDetailPage({
         />
       </div>
 
-      <form action={deleteAction} className="mt-8">
-        <button
-          type="submit"
-          className="w-full flex items-center justify-center gap-2 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 py-2.5 px-4 rounded-xl font-medium text-sm hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-          Supprimer cette garantie
-        </button>
-      </form>
+      {!isShared && (
+        <form action={deleteAction} className="mt-8">
+          <button
+            type="submit"
+            className="w-full flex items-center justify-center gap-2 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 py-2.5 px-4 rounded-xl font-medium text-sm hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Supprimer cette garantie
+          </button>
+        </form>
+      )}
     </div>
   )
 }

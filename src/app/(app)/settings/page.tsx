@@ -4,6 +4,7 @@ import { LogOut, Bell, Info, Download, Shield } from 'lucide-react'
 import Link from 'next/link'
 import { InstallSettingsRow } from '@/app/components/ui/install-settings-row'
 import { DeleteAccountButton } from '@/app/components/ui/delete-account-button'
+import { ShareSection } from '@/app/components/ui/share-section'
 
 async function signOut() {
   'use server'
@@ -48,6 +49,20 @@ export default async function SettingsPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  const [{ data: sentInvites }, { data: receivedShares }] = await Promise.all([
+    supabase
+      .from('shared_access')
+      .select('id, invitee_email, status, created_at')
+      .eq('owner_id', user!.id)
+      .neq('status', 'revoked')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('shared_access')
+      .select('id, owner_email, accepted_at')
+      .eq('invitee_id', user!.id)
+      .eq('status', 'accepted'),
+  ])
 
   return (
     <div className="px-4 pt-6 pb-4">
@@ -107,6 +122,12 @@ export default async function SettingsPage() {
             </div>
           </div>
         </section>
+
+        {/* Partage */}
+        <ShareSection
+          sentInvites={(sentInvites ?? []) as Array<{ id: string; invitee_email: string; status: 'pending' | 'accepted' | 'revoked'; created_at: string }>}
+          receivedShares={(receivedShares ?? []) as Array<{ id: string; owner_email: string; accepted_at: string | null }>}
+        />
 
         {/* Confidentialité */}
         <section>
