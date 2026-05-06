@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import { LogOut, Bell, Info, Download, Shield, AlertTriangle } from 'lucide-react'
+import { LogOut, Bell, Info, Download, Shield } from 'lucide-react'
 import Link from 'next/link'
 import { InstallSettingsRow } from '@/app/components/ui/install-settings-row'
 import { DeleteAccountButton } from '@/app/components/ui/delete-account-button'
@@ -227,10 +227,6 @@ export default async function SettingsPage() {
 
         {/* Zone dangereuse */}
         <section>
-          <h2 className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5" />
-            Zone dangereuse
-          </h2>
           <div className="bg-white dark:bg-slate-800 rounded-2xl border-2 border-red-200 dark:border-red-900 overflow-hidden">
             <div className="px-4 pt-3.5 pb-1">
               <p className="text-xs text-slate-500 dark:text-slate-400">
