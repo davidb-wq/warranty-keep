@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { Users, Mail, Loader2, CheckCircle, Clock, Trash2, LogOut, Plus } from 'lucide-react'
 
 interface SentInvite {
@@ -19,61 +19,53 @@ interface ReceivedShare {
 interface ShareSectionProps {
   sentInvites: SentInvite[]
   receivedShares: ReceivedShare[]
+  inviteAction: (email: string) => Promise<{ error?: string; success?: true }>
+  removeAction: (id: string) => Promise<{ error?: string; success?: true }>
 }
 
-export function ShareSection({ sentInvites: initialSent, receivedShares: initialReceived }: ShareSectionProps) {
-  const [sentInvites, setSentInvites] = useState(initialSent)
-  const [receivedShares, setReceivedShares] = useState(initialReceived)
+export function ShareSection({
+  sentInvites,
+  receivedShares,
+  inviteAction,
+  removeAction,
+}: ShareSectionProps) {
   const [email, setEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [revoking, setRevoking] = useState<string | null>(null)
+  const [formError, setFormError] = useState('')
+  const [formSuccess, setFormSuccess] = useState('')
+  const [removingId, setRemovingId] = useState<string | null>(null)
+  const [removeError, setRemoveError] = useState('')
 
-  async function handleInvite(e: React.FormEvent) {
+  const [invitePending, startInviteTransition] = useTransition()
+  const [removePending, startRemoveTransition] = useTransition()
+
+  function handleInvite(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true)
-    setError('')
-    setSuccess('')
-
-    const res = await fetch('/api/share/invite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim() }),
+    setFormError('')
+    setFormSuccess('')
+    startInviteTransition(async () => {
+      const result = await inviteAction(email.trim())
+      if (result.error) {
+        setFormError(result.error)
+      } else {
+        setFormSuccess(`Invitation envoyée à ${email.trim()} !`)
+        setEmail('')
+      }
     })
-
-    const data = await res.json()
-    setLoading(false)
-
-    if (!res.ok) {
-      setError(data.error ?? 'Une erreur est survenue.')
-      return
-    }
-
-    setSuccess(`Invitation envoyée à ${email.trim()} !`)
-    setEmail('')
-    // Optimistically add to list
-    setSentInvites(prev => [{
-      id: crypto.randomUUID(),
-      invitee_email: email.trim().toLowerCase(),
-      status: 'pending',
-      created_at: new Date().toISOString(),
-    }, ...prev])
   }
 
-  async function handleRevoke(id: string) {
-    setRevoking(id)
-    await fetch(`/api/share/${id}`, { method: 'DELETE' })
-    setSentInvites(prev => prev.filter(i => i.id !== id))
-    setRevoking(null)
+  function handleRemove(id: string) {
+    setRemovingId(id)
+    setRemoveError('')
+    startRemoveTransition(async () => {
+      const result = await removeAction(id)
+      if (result.error) {
+        setRemoveError(result.error)
+      }
+      setRemovingId(null)
+    })
   }
 
-  async function handleLeave(id: string) {
-    setRevoking(id)
-    await fetch(`/api/share/${id}`, { method: 'DELETE' })
-    setReceivedShares(prev => prev.filter(s => s.id !== id))
-    setRevoking(null)
-  }
+  const isRemoving = (id: string) => removePending && removingId === id
 
   return (
     <section>
@@ -81,6 +73,7 @@ export function ShareSection({ sentInvites: initialSent, receivedShares: initial
         Partage
       </h2>
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+
         {/* Invite form */}
         <div className="px-4 py-4 border-b border-slate-100 dark:border-slate-700">
           <div className="flex gap-2 items-center mb-3">
@@ -95,74 +88,95 @@ export function ShareSection({ sentInvites: initialSent, receivedShares: initial
               <input
                 type="email"
                 value={email}
-                onChange={e => { setEmail(e.target.value); setError(''); setSuccess('') }}
+                onChange={e => { setEmail(e.target.value); setFormError(''); setFormSuccess('') }}
                 placeholder="email@exemple.com"
                 required
-                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white focus:border-transparent text-sm"
+                disabled={invitePending}
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white focus:border-transparent text-sm disabled:opacity-50"
               />
             </div>
             <button
               type="submit"
-              disabled={loading || !email}
+              disabled={invitePending || !email}
               className="flex items-center gap-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-3 py-2 rounded-xl text-sm font-medium hover:bg-slate-700 dark:hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {invitePending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Inviter
             </button>
           </form>
-          {error && <p className="text-xs text-red-600 dark:text-red-400 mt-2">{error}</p>}
-          {success && <p className="text-xs text-green-600 dark:text-green-400 mt-2">{success}</p>}
+          {formError && <p className="text-xs text-red-600 dark:text-red-400 mt-2">{formError}</p>}
+          {formSuccess && <p className="text-xs text-green-600 dark:text-green-400 mt-2">{formSuccess}</p>}
         </div>
 
         {/* Invitations envoyées */}
         {sentInvites.length > 0 && (
-          <div className="border-b border-slate-100 dark:border-slate-700">
+          <div className={receivedShares.length > 0 ? 'border-b border-slate-100 dark:border-slate-700' : ''}>
             <p className="px-4 pt-3 pb-1 text-xs font-medium text-slate-500 dark:text-slate-400">
               Invitations envoyées
             </p>
             {sentInvites.map(invite => (
-              <div key={invite.id} className="flex items-center gap-3 px-4 py-3 border-t border-slate-50 dark:border-slate-700/50 first:border-t-0">
+              <div
+                key={invite.id}
+                className="flex items-center gap-3 px-4 py-3 border-t border-slate-50 dark:border-slate-700/50 first:border-t-0"
+              >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{invite.invitee_email}</p>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                    {invite.invitee_email}
+                  </p>
                 </div>
                 <StatusBadge status={invite.status} />
                 <button
-                  onClick={() => handleRevoke(invite.id)}
-                  disabled={revoking === invite.id}
+                  onClick={() => handleRemove(invite.id)}
+                  disabled={isRemoving(invite.id)}
                   className="p-1.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50"
-                  title="Révoquer l'invitation"
+                  title="Révoquer"
                 >
-                  {revoking === invite.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {isRemoving(invite.id)
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Trash2 className="w-4 h-4" />}
                 </button>
               </div>
             ))}
           </div>
         )}
 
-        {/* Comptes partagés avec moi */}
+        {/* Partagé avec moi */}
         {receivedShares.length > 0 && (
           <div>
             <p className="px-4 pt-3 pb-1 text-xs font-medium text-slate-500 dark:text-slate-400">
               Partagé avec moi
             </p>
             {receivedShares.map(share => (
-              <div key={share.id} className="flex items-center gap-3 px-4 py-3 border-t border-slate-50 dark:border-slate-700/50 first:border-t-0">
+              <div
+                key={share.id}
+                className="flex items-center gap-3 px-4 py-3 border-t border-slate-50 dark:border-slate-700/50 first:border-t-0"
+              >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{share.owner_email}</p>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                    {share.owner_email}
+                  </p>
                   <p className="text-xs text-slate-400 dark:text-slate-500">Accès en lecture</p>
                 </div>
                 <button
-                  onClick={() => handleLeave(share.id)}
-                  disabled={revoking === share.id}
+                  onClick={() => handleRemove(share.id)}
+                  disabled={isRemoving(share.id)}
                   className="flex items-center gap-1 px-2 py-1.5 text-xs text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50 rounded-lg hover:bg-red-50 dark:hover:bg-red-950"
                   title="Quitter ce partage"
                 >
-                  {revoking === share.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+                  {isRemoving(share.id)
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <LogOut className="w-3.5 h-3.5" />}
                   Quitter
                 </button>
               </div>
             ))}
           </div>
+        )}
+
+        {removeError && (
+          <p className="px-4 py-2 text-xs text-red-600 dark:text-red-400 border-t border-slate-100 dark:border-slate-700">
+            {removeError}
+          </p>
         )}
 
         {/* Empty state */}
@@ -181,14 +195,14 @@ export function ShareSection({ sentInvites: initialSent, receivedShares: initial
 function StatusBadge({ status }: { status: 'pending' | 'accepted' | 'revoked' }) {
   if (status === 'accepted') {
     return (
-      <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
+      <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium flex-shrink-0">
         <CheckCircle className="w-3.5 h-3.5" />
         Acceptée
       </span>
     )
   }
   return (
-    <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
+    <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium flex-shrink-0">
       <Clock className="w-3.5 h-3.5" />
       En attente
     </span>
