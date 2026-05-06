@@ -1,3 +1,4 @@
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -14,17 +15,18 @@ export default async function ShareAcceptPage({
     return <InvalidPage />
   }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Use service role to look up the token — no RLS needed, token is the secret
+  const admin = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
-  // Read the invitation by token — pending_by_token policy allows this for any session
-  const { data: record } = await supabase
+  const { data: record } = await admin
     .from('shared_access')
-    .select('id, owner_email, invitee_email, status, invitee_id')
+    .select('id, owner_email, invitee_email, status, invitee_id, expires_at')
     .eq('token', token)
     .maybeSingle()
 
-  // Token not found, revoked, or no access
   if (!record) {
     return <InvalidPage />
   }
@@ -33,6 +35,14 @@ export default async function ShareAcceptPage({
   if (record.status === 'accepted') {
     redirect('/warranties')
   }
+
+  // Token expired or revoked
+  if (record.status !== 'pending' || new Date(record.expires_at) < new Date()) {
+    return <ExpiredPage />
+  }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
   // Not logged in → show invitation info + login prompt
   if (!user) {
@@ -95,7 +105,7 @@ export default async function ShareAcceptPage({
     )
   }
 
-  // ✅ Logged in with matching email → auto-accept immediately
+  // ✅ Logged in with matching email → auto-accept via user session (accept_by_email RLS handles auth)
   const { error } = await supabase
     .from('shared_access')
     .update({
@@ -127,7 +137,6 @@ export default async function ShareAcceptPage({
     )
   }
 
-  // Success → redirect to warranties (will now show partner's warranties)
   redirect('/warranties')
 }
 
@@ -143,6 +152,27 @@ function InvalidPage() {
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
           Ce lien d&apos;invitation n&apos;est plus valide ou a déjà été utilisé.
+        </p>
+        <Link href="/login" className="text-sm text-slate-500 underline">
+          Aller à la connexion
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+function ExpiredPage() {
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center px-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-8 max-w-sm w-full text-center shadow-sm">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-900 mb-4">
+          <ShieldOff className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+        </div>
+        <h1 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+          Lien expiré
+        </h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+          Ce lien d&apos;invitation a expiré (valide 30 jours). Demandez un nouvel envoi.
         </p>
         <Link href="/login" className="text-sm text-slate-500 underline">
           Aller à la connexion
