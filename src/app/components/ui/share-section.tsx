@@ -183,7 +183,7 @@ export function ShareSection({
         {sentInvites.length === 0 && receivedShares.length === 0 && (
           <div className="px-4 py-4 border-t border-slate-100 dark:border-slate-700">
             <p className="text-xs text-slate-400 dark:text-slate-500">
-              Aucun partage actif. Invitez un membre de votre famille ou de votre couple pour partager vos garanties.
+              Invite un ou des membres de ta famille afin que vous puissiez partager vos garanties.
             </p>
           </div>
         )}

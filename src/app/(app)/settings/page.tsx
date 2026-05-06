@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import { LogOut, Bell, Info, Download, Shield } from 'lucide-react'
+import { LogOut, Bell, Info, Download, Shield, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { InstallSettingsRow } from '@/app/components/ui/install-settings-row'
 import { DeleteAccountButton } from '@/app/components/ui/delete-account-button'
@@ -148,7 +148,7 @@ export default async function SettingsPage() {
             <form action={signOut}>
               <button
                 type="submit"
-                className="w-full flex items-center gap-3 px-4 py-3.5 text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-left text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               >
                 <LogOut className="w-4 h-4 flex-shrink-0" />
                 <span className="text-sm font-medium">Se déconnecter</span>
@@ -214,7 +214,7 @@ export default async function SettingsPage() {
             </a>
             <Link
               href="/confidentialite"
-              className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-700"
+              className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
               <Shield className="w-4 h-4 text-slate-500 flex-shrink-0" />
               <div>
@@ -222,6 +222,21 @@ export default async function SettingsPage() {
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Loi 25 — vos droits et nos pratiques</p>
               </div>
             </Link>
+          </div>
+        </section>
+
+        {/* Zone dangereuse */}
+        <section>
+          <h2 className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Zone dangereuse
+          </h2>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border-2 border-red-200 dark:border-red-900 overflow-hidden">
+            <div className="px-4 pt-3.5 pb-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                La suppression de votre compte est <strong className="text-red-600 dark:text-red-400">permanente et irréversible</strong>. Toutes vos garanties et photos seront effacées.
+              </p>
+            </div>
             <DeleteAccountButton deleteAction={deleteAccount} />
           </div>
         </section>
