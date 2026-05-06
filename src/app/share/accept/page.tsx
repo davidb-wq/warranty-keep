@@ -20,7 +20,7 @@ async function acceptInvitation(token: string) {
     .eq('status', 'pending')
     .eq('invitee_email', user.email!)
 
-  redirect('/warranties?tab=shared')
+  redirect('/warranties')
 }
 
 export default async function ShareAcceptPage({

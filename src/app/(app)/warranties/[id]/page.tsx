@@ -17,15 +17,13 @@ async function deleteWarranty(id: string, userId: string) {
 
 export default async function WarrantyDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ shared?: string }>
 }) {
   const { id } = await params
-  const { shared } = await searchParams
-  const isShared = shared === 'true'
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
   const { data: warranty } = await supabase
     .from('warranties')
     .select('*')
@@ -33,6 +31,8 @@ export default async function WarrantyDetailPage({
     .single()
 
   if (!warranty) notFound()
+
+  const isShared = warranty.user_id !== user!.id
 
   const w = warranty as Warranty
 
@@ -58,7 +58,7 @@ export default async function WarrantyDetailPage({
     <div className="px-4 pt-6 pb-4">
       <div className="flex items-center gap-3 mb-6">
         <Link
-          href={isShared ? '/warranties?tab=shared' : '/warranties'}
+          href="/warranties"
           className="p-2 -ml-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
