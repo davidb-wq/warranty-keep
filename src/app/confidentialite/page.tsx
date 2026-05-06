@@ -62,16 +62,16 @@ export default function PolitiqueConfidentialitePage() {
         {/* 1. Responsable du traitement */}
         <Section title="1. Responsable du traitement">
           <p>
-            ZenGarantie est exploité par <strong className="text-slate-800 dark:text-slate-200">David Blouin</strong>,
+            ZenGarantie est exploité par <strong className="text-slate-800 dark:text-slate-200">David</strong>,
             résidant au Québec, Canada. Pour toute question relative à la confidentialité de vos
             renseignements personnels, vous pouvez nous contacter à :
           </p>
           <p>
             <a
-              href="mailto:davidblouin03@gmail.com"
+              href="mailto:solutionsvireo@gmail.com"
               className="text-slate-900 dark:text-white font-medium underline hover:opacity-70 transition-opacity"
             >
-              davidblouin03@gmail.com
+              solutionsvireo@gmail.com
             </a>
           </p>
         </Section>
@@ -126,10 +126,10 @@ export default function PolitiqueConfidentialitePage() {
             Aucune donnée personnelle n&apos;est vendue ni partagée à des tiers à des fins commerciales
             ou publicitaires. Pour obtenir la liste nominative des sous-traitants, contactez-nous à{' '}
             <a
-              href="mailto:davidblouin03@gmail.com"
+              href="mailto:solutionsvireo@gmail.com"
               className="text-slate-900 dark:text-white font-medium underline hover:opacity-70 transition-opacity"
             >
-              davidblouin03@gmail.com
+              solutionsvireo@gmail.com
             </a>.
           </p>
         </Section>
@@ -178,10 +178,10 @@ export default function PolitiqueConfidentialitePage() {
             Pour exercer votre droit d&apos;accès ou pour toute demande non couverte par les fonctions
             intégrées, contactez-nous par courriel à{' '}
             <a
-              href="mailto:davidblouin03@gmail.com"
+              href="mailto:solutionsvireo@gmail.com"
               className="text-slate-900 dark:text-white font-medium underline hover:opacity-70 transition-opacity"
             >
-              davidblouin03@gmail.com
+              solutionsvireo@gmail.com
             </a>
             . Nous répondrons dans un délai de <strong className="text-slate-800 dark:text-slate-200">30 jours</strong>.
           </p>
@@ -236,8 +236,8 @@ export default function PolitiqueConfidentialitePage() {
         <div className="border-t border-slate-200 dark:border-slate-700 pt-6 text-center">
           <p className="text-xs text-slate-400 dark:text-slate-500">
             ZenGarantie — Québec, Canada ·{' '}
-            <a href="mailto:davidblouin03@gmail.com" className="underline hover:text-slate-600 dark:hover:text-slate-300">
-              davidblouin03@gmail.com
+            <a href="mailto:solutionsvireo@gmail.com" className="underline hover:text-slate-600 dark:hover:text-slate-300">
+              solutionsvireo@gmail.com
             </a>
           </p>
           <Link
